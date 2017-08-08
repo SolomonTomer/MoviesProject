@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 # print('test')
 
 import pymysql
-import sshtunnel
+#import sshtunnel
 #
 # with sshtunnel.SSHTunnelForwarder(
 #         ('ec2-35-160-78-221.us-west-2.compute.amazonaws.com', 22),
@@ -42,9 +42,9 @@ print(connection)
 try:
     cursor = connection.cursor()
     # Read a single record
-    sql = "insert into movie select 'tommer' from dual"
+    sql = "select * from movie_tmp"
     cursor.execute(sql)
-    connection.commit()
+    #connection.commit()
     result = cursor.fetchone()
     print(result)
 finally:

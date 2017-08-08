@@ -10,8 +10,8 @@ MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'augus
 STARTING_INDEX = 2
 MAX_YEAR = 2016
 MIN_YEAR = 2014
-
 log = open('logger.txt', 'w')
+
 
 def extract_movies_from_page(page, lst):
     movies = page.find_all("tr", "summary_row")
@@ -27,8 +27,10 @@ def extract_movies_from_page(page, lst):
             date[0] = month_num
             print(title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2]))
             lst.append((title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2])))
+        except IndexError:
+            log.write("Error")
         except:
-            log.write(movie + "\n")
+            log.write("Error")
 
 # ALL TITLES - page.find_all("div", "content_after_header")[0].find_all("a", href=re.compile("(?=^/movie/.*)(?=(?!^/movie/.*/.*))"))
 
