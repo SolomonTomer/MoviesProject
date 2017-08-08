@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen
 from Crawler.Movie import Movie
+from Crawler.Movie import MetaCriticMovie
 import re
 
 BASIC_URL = 'http://www.metacritic.com'
@@ -14,24 +15,43 @@ log = open('logger.txt', 'w')
 
 
 def extract_movies_from_page(page, lst):
-    movies = page.find_all("tr", "summary_row")
-    for movie in movies:
+    movies = page.find_all("tr", re.compile("summary_row|details_row"))
+    i = 0
+    m_len = len(movies)
+    while i < m_len:
+        movie = movies[i]
+        movie_extended = movies[i + 1]
+        i += 2
+    # for movie in movies:
         try:
             date = movie.find("td", "date_wrapper").span.text.replace(',', '').split(' ')
             date[2] = int(date[2])
             if date[2] > MAX_YEAR or date[2] < MIN_YEAR:
                 continue
+
+            # Extracting data
             score = movie.find("td", "score_wrapper").text.strip()
             title = movie.find("td", "title_wrapper").text.strip()
             month_num = MONTHS.index(date[0].lower()) + 1
             date[0] = month_num
-            user_score = page.find("div", "userscore_text").text.strip()
+            release_date = date[1] + "/" + str(date[0]) + "/" + str(date[2])
+
+            # Extended dataset
+            user_score = movie_extended.find("div", "userscore_text").text.strip()
             user_score = user_score[(user_score.index("\n") + 1):]
-            lst.append((title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2])))
-        except IndexError:
-            log.write("Error")
+            run_time = movie_extended.find("div", "runtime").text.strip()
+            run_time = run_time[(run_time.index("\n") + 1):-4]
+            genres = movie_extended.find("div", "genres").text.split()[1:]
+            for j in range(len(genres)):
+                genres[j] = genres[j].replace(",", "")
+            genres.sort()
+            lst.append(MetaCriticMovie(title, release_date, run_time, score, user_score, genres))
+           # lst.append((title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2])))
         except:
-            log.write("Error")
+            try:
+                log.write(movie)
+            except TypeError:
+                log.write("Error")
 
 # ALL TITLES - page.find_all("div", "content_after_header")[0].find_all("a", href=re.compile("(?=^/movie/.*)(?=(?!^/movie/.*/.*))"))
 
@@ -66,6 +86,5 @@ def parse_metascore():
 log.write("Starting process\n")
 lst = parse_metascore()
 log.write("Starting insertion\n")
-mv = Movie()
-mv.insert_to_temp(lst)
+MetaCriticMovie.create_insert(lst)
 log.write("DONE")

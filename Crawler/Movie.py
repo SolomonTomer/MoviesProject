@@ -2,6 +2,35 @@ import pymysql
 from Crawler.Database import Database
 
 
+class MetaCriticMovie:
+    raw_sql = 'select "{}", STR_TO_DATE("{}", "%d/%m/%Y"), "{}", "{}", "{}", "{}" from dual'
+
+    def __init__(self, title, release_date, run_time, meta_score, user_score, genres):
+        self.title = title
+        self.release_date = release_date
+        self.run_time = run_time
+        self.meta_score = meta_score
+        self.user_score = user_score
+        self.genres = genres
+
+    @staticmethod
+    def create_insert(lst):
+        union = ''
+        for i in range(len(lst)):
+            self = lst[i]
+            union += MetaCriticMovie.raw_sql.format(self.title, self.release_date, self.run_time,
+                                                    self.meta_score, self.user_score, ', '.join(self.genres))
+            if i + 1 != len(lst):
+                union += " union all \n"
+            # m = lst[i]
+            # m.replace('\'', '\\\'')
+            # union += 'select \'' + m[0] + '\',' + m[1] + ', STR_TO_DATE(\'' + m[2] + '\', \'%d/%m/%Y\') from dual'
+            # if i + 1 != len(lst):
+            #     union += ' union all \n'
+
+        print(union)
+
+
 class Movie:
 
     def __init__(self, row):
@@ -15,13 +44,11 @@ class Movie:
         self.gross = 0
         self.imdb_score = 0
         self.meta_score = row[1]
+        self.user_score = 0
         self.genres = []
         self.director = None
         self.writer = None
         self.stars = []
-
-
-
 
     def get_temp_movies(self):
         query = 'Select * from movie_tmp'
@@ -32,16 +59,7 @@ class Movie:
 
 
 
-    def insert_to_temp(self, lst):
-        union = ''
-        for i in range(len(lst)):
-            m = lst[i]
-            m.replace('\'', '\\\'')
-            union += 'select \'' + m[0] + '\',' + m[1] + ', STR_TO_DATE(\'' + m[2] + '\', \'%d/%m/%Y\') from dual'
-            if i + 1 != len(lst):
-                union += ' union all \n'
 
-        print(union)
         # Received an error while trying to insert a valid statement. splitted manualy
         # try:
         #     cursor = conn.cursor()
