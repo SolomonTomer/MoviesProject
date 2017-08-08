@@ -3,7 +3,34 @@ from Crawler.Database import Database
 
 
 class Movie:
-    db = Database()
+
+    def __init__(self, row):
+        self.title = row[0]
+        self.release_date = row[2]
+        self.rated = None
+        self.run_time = 0
+        self.country = None
+        self.language = None
+        self.opening_weekend = 0
+        self.gross = 0
+        self.imdb_score = 0
+        self.meta_score = row[1]
+        self.genres = []
+        self.director = None
+        self.writer = None
+        self.stars = []
+
+
+
+
+    def get_temp_movies(self):
+        query = 'Select * from movie_tmp'
+        conn = Database().get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+
 
     def insert_to_temp(self, lst):
         union = ''

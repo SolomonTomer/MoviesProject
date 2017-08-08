@@ -25,7 +25,8 @@ def extract_movies_from_page(page, lst):
             title = movie.find("td", "title_wrapper").text.strip()
             month_num = MONTHS.index(date[0].lower()) + 1
             date[0] = month_num
-            print(title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2]))
+            user_score = page.find("div", "userscore_text").text.strip()
+            user_score = user_score[(user_score.index("\n") + 1):]
             lst.append((title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2])))
         except IndexError:
             log.write("Error")
