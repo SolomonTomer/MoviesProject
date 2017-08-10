@@ -4,6 +4,7 @@ from Crawler.Database import Database
 
 class MetaCriticMovie:
     raw_sql = 'select "{}", STR_TO_DATE("{}", "%d/%m/%Y"), "{}", "{}", "{}", "{}" from dual'
+    get_all_sql = 'select * from movie_tmp'
 
     def __init__(self, title, release_date, run_time, meta_score, user_score, genres):
         self.title = title
@@ -27,8 +28,11 @@ class MetaCriticMovie:
             # union += 'select \'' + m[0] + '\',' + m[1] + ', STR_TO_DATE(\'' + m[2] + '\', \'%d/%m/%Y\') from dual'
             # if i + 1 != len(lst):
             #     union += ' union all \n'
-
         print(union)
+
+    @staticmethod
+    def get_all_rows():
+
 
 
 class Movie:
