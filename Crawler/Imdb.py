@@ -4,9 +4,10 @@ from urllib import parse
 from Crawler.Movie import MetaCriticMovie
 from Crawler.Movie import Movie
 import sys
+import pickle as fp
 
 #SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&q={}&s=all"
-SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&%s=all"
+SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&%s&s=all"
 BASE_URL = "http://www.imdb.com"
 log = open('logger.txt', 'w')
 
@@ -58,7 +59,8 @@ def parse_movie_page(link, cur_movie):
             gross = 0
             opening_weekend = 0
             div_elem = box_office_section.findNext("div")
-            while True:
+            i = 0
+            while i < 3:
                 if div_elem.h4.text[:-1] is not None and div_elem.h4.text[:-1] == "Budget":
                     budget = div_elem.h4.nextSibling.strip()[1:].replace(',', '')
                 elif div_elem.h4.text[:-1] is not None and div_elem.h4.text[:-1] == "Gross":
@@ -68,6 +70,7 @@ def parse_movie_page(link, cur_movie):
                     opening_weekend = div_elem.h4.nextSibling.strip()[1:num_ending].replace(',', '')
                 else:
                     break
+                i += 1
                 div_elem = div_elem.findNext("div")
             cur_movie.budget = budget
             cur_movie.opening_weekend = opening_weekend
@@ -89,10 +92,9 @@ def parse_movie_page(link, cur_movie):
 
 def search_and_parse(movies, movie_list):
     for movie in movies:
-        #query = SEARCH_URL.format("Alléluia")
         q = parse.urlencode({"q": movie.get("title")})
         query = SEARCH_URL % q
-        #print("Alléluia" + " " + query + "\n")
+        log.write("Starting: " + query + "\n")
         try:
             req = Request(query, headers={'User-Agent': 'Mozilla/5.0'})
             main = BeautifulSoup(urlopen(req).read(), "html.parser")
@@ -104,26 +106,59 @@ def search_and_parse(movies, movie_list):
                         full_movie.copy_from_meta(movie)
                         parse_movie_page(BASE_URL + movie_link, full_movie)
                         movie_list.append(full_movie)
+                        log.write("Done Successfully\n")
                         break
                     except:
-                        log.write("Error link: " + movie_link + "\n")
+                        log.write("Error!\n")
                         break
         except:
             log.write("Error opening a url.\n")
             continue
 
 
-# Main
-try:
-    lst = []
-    log.write("starting\n")
+def create_backup_file():
     rows = MetaCriticMovie.get_all_rows()
-    #rows = MetaCriticMovie.get_by_title("Alléluia")
-    #rows = ['f', 'f']
-    search_and_parse(rows, lst)
-    Movie.create_insert(lst)
-except:
-    raise
-finally:
-    log.write("ending\n")
-    log.close()
+    backup = open("backup.txt", "wb")
+    fp.dump(rows, backup)
+    backup.close()
+
+
+def extract_backup():
+    backup = open("backup.txt", "rb")
+    rows = fp.load(backup)
+    backup.close()
+    return rows
+
+
+def main():
+    try:
+        lst = []
+        log.write("starting\n")
+
+        # Backup section to save network transportation
+        #create_backup_file()
+        rows = extract_backup()
+
+        # Handling movies
+        o = open("out.txt", "wb")
+        search_and_parse(rows[:200], lst)
+        print("starting 2:\n")
+        search_and_parse(rows[200:400], lst)
+        print("starting 3:\n")
+        search_and_parse(rows[400:600], lst)
+        print("starting 4:\n")
+        search_and_parse(rows[600:800], lst)
+        print("starting 5:\n")
+        search_and_parse(rows[800:1000], lst)
+        print("starting 6:\n")
+        search_and_parse(rows[1000:], lst)
+        Movie.create_insert(lst, o)
+        o.close()
+
+    except:
+        raise
+    finally:
+        log.write("ending\n")
+        log.close()
+
+main()

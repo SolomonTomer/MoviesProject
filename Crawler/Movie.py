@@ -59,8 +59,6 @@ class Movie:
         self.release_date = None
         self.rated = None
         self.run_time = 0
-        self.country = []
-        self.language = []
         self.budget = 0
         self.opening_weekend = 0
         self.gross = 0
@@ -68,8 +66,10 @@ class Movie:
         self.meta_score = 0
         self.user_score = 0
         self.genres = []
-        self.director = []
-        self.writer = []
+        self.countries = []
+        self.languages = []
+        self.directors = []
+        self.writers = []
         self.stars = []
 
     def copy_from_row(self, row):
@@ -77,8 +77,6 @@ class Movie:
         self.release_date = row[2]
         self.rated = None
         self.run_time = 0
-        self.country = []
-        self.language = []
         self.budget = 0
         self.opening_weekend = 0
         self.gross = 0
@@ -86,8 +84,10 @@ class Movie:
         self.meta_score = row[1]
         self.user_score = 0
         self.genres = []
-        self.director = []
-        self.writer = []
+        self.countries = []
+        self.languages = []
+        self.directors = []
+        self.writers = []
         self.stars = []
 
     def copy_from_meta(self, meta_movie):
@@ -112,19 +112,22 @@ class Movie:
                        'from dual'
     table_connector_union_sql = 'select "{}", "{}" from dual '
 
+    mx = 'select %s from dual'
+
     @staticmethod
     def generate_union(lst, title, add_union):
         res = ''
-        if add_union:
-            res += " union all \n"
         for ind in range(len(lst)):
+            # Wasn't checked - change due to some movies with missing values
+            if add_union and ind == 0:
+                res += " union all \n"
             res += Movie.table_connector_union_sql.format(title, lst[ind])
             if ind + 1 != len(lst):
                 res += " union all \n"
         return res
 
     @staticmethod
-    def create_insert(lst):
+    def create_insert(lst, output=None):
         movies_insert = 'insert into movies \n'
         genres_insert = 'insert into movie_genres \n'
         countries_insert = 'insert into movie_countries \n'
@@ -134,6 +137,7 @@ class Movie:
         stars_insert = 'insert into movie_stars \n'
         for i in range(len(lst)):
             self = lst[i]
+            temp = Movie.mx % self.title
             movies_insert += Movie.movies_union_sql.format(self.title, self.release_date, self.rated, self.run_time, self.budget,
                                                     self.opening_weekend, self.gross, self.imdb_score,
                                                     self.meta_score, self.user_score)
@@ -143,19 +147,6 @@ class Movie:
             directors_insert += Movie.generate_union(self.directors, self.title, False if i == 0 else True)
             writers_insert += Movie.generate_union(self.writers, self.title, False if i == 0 else True)
             stars_insert += Movie.generate_union(self.stars, self.title, False if i == 0 else True)
-            #
-            # for g in self.genres:
-            #     genres_insert += Movie.table_connector_union_sql.format(self.title, g)
-            # for g in self.countries:
-            #     countries_insert += Movie.table_connector_union_sql.format(self.title, g)
-            # for g in self.languages:
-            #     languages_insert += Movie.table_connector_union_sql.format(self.title, g)
-            # for g in self.directors:
-            #     directors_insert += Movie.table_connector_union_sql.format(self.title, g)
-            # for g in self.writers:
-            #     writers_insert += Movie.table_connector_union_sql.format(self.title, g)
-            # for g in self.stars:
-            #     stars_insert += Movie.table_connector_union_sql.format(self.title, g)
 
             if i + 1 != len(lst):
                 movies_insert += " union all \n"
@@ -163,17 +154,33 @@ class Movie:
         # Removing "None"
         movies_insert = movies_insert.replace('"None"', 'NULL')
 
-        print("#MOVIES\n")
-        print(movies_insert + ";")
-        print("#GENRES\n")
-        print(genres_insert+ ";")
-        print("#COUNTRIES\n")
-        print(countries_insert + ";")
-        print("#LANGUAGES\n")
-        print(languages_insert + ";")
-        print("#DIRECTORS\n")
-        print(directors_insert + ";")
-        print("#WRITERS\n")
-        print(writers_insert + ";")
-        print("#STARS\n")
-        print(stars_insert + ";")
+        if output is not None:
+            output.write("#MOVIES\n".encode("utf8"))
+            output.write((movies_insert + ";").encode("utf8"))
+            output.write("\n#GENRES\n".encode("utf8"))
+            output.write((genres_insert + ";").encode("utf8"))
+            output.write("\n#COUNTRIES\n".encode("utf8"))
+            output.write((countries_insert + ";").encode("utf8"))
+            output.write("\n#LANGUAGES\n".encode("utf8"))
+            output.write((languages_insert + ";").encode("utf8"))
+            output.write("\n#DIRECTORS\n".encode("utf8"))
+            output.write((directors_insert + ";").encode("utf8"))
+            output.write("\n#WRITERS\n".encode("utf8"))
+            output.write((writers_insert + ";").encode("utf8"))
+            output.write("\n#STARS\n".encode("utf8"))
+            output.write((stars_insert + ";").encode("utf8"))
+        else:
+            print("#MOVIES\n")
+            print(movies_insert + ";")
+            print("#GENRES\n")
+            print(genres_insert+ ";")
+            print("#COUNTRIES\n")
+            print(countries_insert + ";")
+            print("#LANGUAGES\n")
+            print(languages_insert + ";")
+            print("#DIRECTORS\n")
+            print(directors_insert + ";")
+            print("#WRITERS\n")
+            print(writers_insert + ";")
+            print("#STARS\n")
+            print(stars_insert + ";")
