@@ -1,25 +1,27 @@
-from bs4 import BeautifulSoup
-from urllib.request import Request, urlopen
-from urllib import parse
-from Crawler.Movie import MetaCriticMovie
-from Crawler.Movie import Movie
-import sys
 import pickle as fp
+import re
+import sys
+from urllib import parse
+from urllib.request import Request, urlopen
+from bs4 import BeautifulSoup
+from Crawler.Database.Movie import MetaCriticMovie
+from Crawler.Database.Movie import Movie
 
-#SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&q={}&s=all"
+
 SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&%s&s=all"
 BASE_URL = "http://www.imdb.com"
-log = open('logger.txt', 'w')
+BACKUP_FILE = "../Files/backup.txt"
+log = open(BACKUP_FILE, 'w')
 
 
 def parse_movie_page(link, cur_movie):
     try:
         p_req = Request(link, headers={'User-Agent': 'Mozilla/5.0'})
         page = BeautifulSoup(urlopen(p_req).read(), "html.parser")
-        rate_type = page.find("div","title_wrapper").find(itemprop="contentRating")
+        rate_type = page.find("div", "title_wrapper").find(itemprop="contentRating")
         if rate_type is not None:
             cur_movie.rated = rate_type.get("content")
-        imdb_rating = page.find("div","ratingValue")
+        imdb_rating = page.find("div", "ratingValue")
         if imdb_rating is not None:
             cur_movie.imdb_score = imdb_rating.span.text
 
@@ -55,9 +57,9 @@ def parse_movie_page(link, cur_movie):
         if box_office_section is not None:
 
             # Some blocks can be missed
-            budget = 0
-            gross = 0
-            opening_weekend = 0
+            budget = '0'
+            gross = '0'
+            opening_weekend = '0'
             div_elem = box_office_section.findNext("div")
             i = 0
             while i < 3:
@@ -72,9 +74,9 @@ def parse_movie_page(link, cur_movie):
                     break
                 i += 1
                 div_elem = div_elem.findNext("div")
-            cur_movie.budget = budget
-            cur_movie.opening_weekend = opening_weekend
-            cur_movie.gross = gross
+            cur_movie.budget = str(re.search(r'\d+', budget).group())
+            cur_movie.opening_weekend = str(re.search(r'\d+', opening_weekend).group())
+            cur_movie.gross = str(re.search(r'\d+', gross).group())
 
         languages = []
         for cur_lang in page.find(text="Language:").parent.parent.find_all("a"):
@@ -97,8 +99,8 @@ def search_and_parse(movies, movie_list):
         log.write("Starting: " + query + "\n")
         try:
             req = Request(query, headers={'User-Agent': 'Mozilla/5.0'})
-            main = BeautifulSoup(urlopen(req).read(), "html.parser")
-            for section in main.find_all("div", "findSection"):
+            main_page = BeautifulSoup(urlopen(req).read(), "html.parser")
+            for section in main_page.find_all("div", "findSection"):
                 if section.h3 is not None and section.h3.text == 'Titles':
                     try:
                         movie_link = section.find("td", "result_text").find("a", href=True)['href']
@@ -118,29 +120,24 @@ def search_and_parse(movies, movie_list):
 
 def create_backup_file():
     rows = MetaCriticMovie.get_all_rows()
-    backup = open("backup.txt", "wb")
+    backup = open(BACKUP_FILE, "wb")
     fp.dump(rows, backup)
     backup.close()
 
 
 def extract_backup():
-    backup = open("backup.txt", "rb")
+    backup = open(BACKUP_FILE, "rb")
     rows = fp.load(backup)
     backup.close()
     return rows
 
 
-def main():
+def main(rows, file=None):
     try:
         lst = []
         log.write("starting\n")
 
-        # Backup section to save network transportation
-        #create_backup_file()
-        rows = extract_backup()
-
         # Handling movies
-        o = open("out.txt", "wb")
         search_and_parse(rows[:200], lst)
         print("starting 2:\n")
         search_and_parse(rows[200:400], lst)
@@ -152,13 +149,17 @@ def main():
         search_and_parse(rows[800:1000], lst)
         print("starting 6:\n")
         search_and_parse(rows[1000:], lst)
-        Movie.create_insert(lst, o)
-        o.close()
-
+        Movie.create_insert(lst, file)
+        if file is not None:
+            file.close()
     except:
         raise
     finally:
         log.write("ending\n")
         log.close()
 
-main()
+
+# create_backup_file()
+o = None
+o = open("..Files/out.txt", "wb")
+main(o)

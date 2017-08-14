@@ -1,5 +1,5 @@
 import sys
-from Crawler.Database import Database
+from Crawler.Database.Database import Database
 
 
 class MetaCriticMovie:
@@ -172,7 +172,7 @@ class Movie:
         else:
             print("#MOVIES\n")
             print(movies_insert + ";")
-            print("#GENRES\n")
+            print("#GENRES")
             print(genres_insert+ ";")
             print("#COUNTRIES\n")
             print(countries_insert + ";")
