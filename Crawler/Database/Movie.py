@@ -137,7 +137,6 @@ class Movie:
         stars_insert = 'insert into movie_stars \n'
         for i in range(len(lst)):
             self = lst[i]
-            temp = Movie.mx % self.title
             movies_insert += Movie.movies_union_sql.format(self.title, self.release_date, self.rated, self.run_time, self.budget,
                                                     self.opening_weekend, self.gross, self.imdb_score,
                                                     self.meta_score, self.user_score)

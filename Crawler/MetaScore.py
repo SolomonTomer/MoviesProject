@@ -166,8 +166,8 @@ def get_persons_union_insert(persons_list):
     output = 'INSERT INTO persons\n'
     for p in persons:
         output += p.get_insert_from_select() + " union all\n"
-    f = open(PERSON_INSERT_FILE, "w")
-    f.write(output[:-11] + ";")
+    f = open(PERSON_INSERT_FILE, "wb")
+    f.write((output + ";").encode("utf8"))
     f.close()
 
 
