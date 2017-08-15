@@ -189,4 +189,4 @@ def get_persons_union_insert(persons_list):
 rows = extract_persons_backup()
 # rows = Person.get_persons_in_db(True, True, True)
 logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
-get_persons_union_insert(rows[1:3])
+get_persons_union_insert(rows)
