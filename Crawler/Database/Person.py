@@ -7,6 +7,8 @@ ALL_WRITERS = "select writer as name from movie_writers"
 ALL_DISTINCT_NAMES_WRAPPER = "select distinct tmp.name from (%s) tmp"
 INSERT_FROM_SELECT = 'select "{}", "{}","{}","{}","{}","{}","{}" from dual'
 
+GET_ALL_MISSING_VALUES = 'select * from persons s where s.meta_user_median is NULL or s.meta_user_lowest is NULL'
+
 
 class Person:
 
@@ -46,6 +48,22 @@ class Person:
             cursor = conn.cursor()
             final_sql = ALL_DISTINCT_NAMES_WRAPPER % union_sql
             cursor.execute(final_sql)
+            results = cursor.fetchall()
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+            return [Person(row.get("name")) for row in results]
+
+    @staticmethod
+    def get_missing_values_people():
+        results = []
+        try:
+            conn = Database().get_connection()
+            cursor = conn.cursor()
+            cursor.execute(GET_ALL_MISSING_VALUES)
             results = cursor.fetchall()
         except:
             print("Unexpected error:", sys.exc_info()[0])

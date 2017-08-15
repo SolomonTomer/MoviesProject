@@ -102,8 +102,11 @@ def get_metascore_movies():
         log.write("DONE")
 
 
-def create_persons_backup_file(actors, directors, writers):
-    rows = Person.get_persons_in_db(actors, directors, writers)
+def create_persons_backup_file(actors=True, directors=True, writers=True, missing=False):
+    if missing:
+        rows = Person.get_missing_values_people()
+    else:
+        rows = Person.get_persons_in_db(actors, directors, writers)
     backup = open(PERSON_BACKUP, "wb")
     fp.dump(rows, backup)
     backup.close()
@@ -131,8 +134,14 @@ def handle_person_page(person_url, person_name):
         # Extracting user data
         user_table_rows = person_page.find("table", re.compile("person_credits")).tbody.find_all("tr")
         person.meta_user_highest = user_table_rows[0].find("td", "score").span.text
-        person.meta_user_median = user_table_rows[int(len(user_table_rows)/2)].find("td", "score").span.text
-        person.meta_user_lowest = user_table_rows[len(user_table_rows) - 1].find("td", "score").span.text
+        last_index = 0
+        table_size = len(user_table_rows) - 1
+        for i in range(table_size, -1, -1):
+            if user_table_rows[i].find("td", "score").span.text != "tbd":
+                last_index = i
+                break
+        person.meta_user_median = user_table_rows[int(last_index/2)].find("td", "score").span.text
+        person.meta_user_lowest = user_table_rows[last_index].find("td", "score").span.text
     except:
         log.write("Error handle_person_page: " + person_url + " \n")
         person = None
@@ -175,8 +184,9 @@ def get_persons_union_insert(persons_list):
 # get_metascore_movies()
 
 ######### Getting the persons ##########
-# create_persons_backup_file(True, True, True)
+# create_persons_backup_file()
+# create_persons_backup_file(missing=True)
 rows = extract_persons_backup()
 # rows = Person.get_persons_in_db(True, True, True)
 logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
-get_persons_union_insert(rows)
+get_persons_union_insert(rows[1:3])
