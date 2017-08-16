@@ -7,7 +7,10 @@ ALL_WRITERS = "select writer as name from movie_writers"
 ALL_DISTINCT_NAMES_WRAPPER = "select distinct tmp.name from (%s) tmp"
 INSERT_FROM_SELECT = 'select "{}", "{}","{}","{}","{}","{}","{}" from dual'
 
-GET_ALL_MISSING_VALUES = 'select * from persons s where s.meta_user_median is NULL or s.meta_user_lowest is NULL'
+GET_ALL_MISSING_VALUES = 'select * from persons s where s.meta_user_median is NULL or s.meta_user_lowest is NULL or ' \
+                         ' s.meta_user_highest is NULL or s.meta_critic_lowest is NULL ' \
+                         ' or s.meta_critic_avg_career is NULL ' \
+                         ' or s.meta_critic_highest is NULL'
 
 
 class Person:

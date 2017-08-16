@@ -176,7 +176,7 @@ def get_persons_union_insert(persons_list):
     for p in persons:
         output += p.get_insert_from_select() + " union all\n"
     f = open(PERSON_INSERT_FILE, "wb")
-    f.write((output + ";").encode("utf8"))
+    f.write((output[:-11] + ";").encode("utf8"))
     f.close()
 
 
@@ -185,7 +185,7 @@ def get_persons_union_insert(persons_list):
 
 ######### Getting the persons ##########
 # create_persons_backup_file()
-# create_persons_backup_file(missing=True)
+#create_persons_backup_file(missing=True)
 rows = extract_persons_backup()
 # rows = Person.get_persons_in_db(True, True, True)
 logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
