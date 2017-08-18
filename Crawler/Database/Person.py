@@ -1,5 +1,6 @@
 import sys
 from Crawler.Database.Database import Database
+import pickle as fp
 
 ALL_ACTORS = "select actor as name from movie_stars"
 ALL_DIRECTORS = "select director as name from movie_directors"
@@ -75,3 +76,20 @@ class Person:
             if conn is not None:
                 conn.close()
             return [Person(row.get("name")) for row in results]
+
+    @staticmethod
+    def create_persons_backup_file(file_name, actors=True, directors=True, writers=True, missing=False):
+        if missing:
+            rows = Person.get_missing_values_people()
+        else:
+            rows = Person.get_persons_in_db(actors, directors, writers)
+        backup = open(file_name, "wb")
+        fp.dump(rows, backup)
+        backup.close()
+
+    @staticmethod
+    def extract_persons_backup(file_name):
+        backup = open(file_name, "rb")
+        rows = fp.load(backup)
+        backup.close()
+        return rows

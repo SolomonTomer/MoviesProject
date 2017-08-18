@@ -1,10 +1,9 @@
-import pickle as fp
 import re
 import sys
 from urllib import parse
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
-from Crawler.Database.Movie import MetaCriticMovie
+from Crawler.Database.TmpMovies import TmpMovies
 from Crawler.Database.Movie import Movie
 
 
@@ -12,6 +11,33 @@ SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&%s&s=all"
 BASE_URL = "http://www.imdb.com"
 BACKUP_FILE = "../Files/backup.txt"
 log = open(BACKUP_FILE, 'w')
+
+
+def get_cast_data(page, cur_movie):
+    # Credit summary data
+    credits_section = page.find("div", "plot_summary")
+    if credits_section is not None:
+        # Handling director & writers
+        directors = []
+        writers = []
+        for director in credits_section.find_all(itemprop="director"):
+            directors.append(director.span.text)
+        for writer in credits_section.find_all(itemprop="creator"):
+            writers.append(writer.span.text)
+        cur_movie.directors = directors
+        cur_movie.writers = writers
+
+    # Main actors
+    actors = []
+    actors_table = page.find(id="titleCast")
+    if actors_table is not None:
+        actors_table = actors_table.table.find_all("tr")
+        for actor_index in range(1, len(actors_table)):
+            if actor_index > 5:
+                break
+            tname = actors_table[actor_index].find("span", "itemprop").text
+            actors.append(tname)
+    cur_movie.stars = actors
 
 
 def parse_movie_page(link, cur_movie):
@@ -25,30 +51,8 @@ def parse_movie_page(link, cur_movie):
         if imdb_rating is not None:
             cur_movie.imdb_score = imdb_rating.span.text
 
-        # Credit summary data
-        credits_section = page.find("div", "plot_summary")
-        if credits_section is not None:
-            # Handling director & writers
-            directors = []
-            writers = []
-            for director in credits_section.find_all(itemprop="director"):
-                directors.append(director.span.text)
-            for writer in credits_section.find_all(itemprop="creator"):
-                writers.append(writer.span.text)
-            cur_movie.directors = directors
-            cur_movie.writers = writers
-
-        # Main actors
-        actors = []
-        actors_table = page.find(id="titleCast")
-        if actors_table is not None:
-            actors_table = actors_table.table.find_all("tr")
-            for actor_index in range(1, len(actors_table)):
-                if actor_index > 5:
-                    break
-                tname = actors_table[actor_index].find("span", "itemprop").text
-                actors.append(tname)
-        cur_movie.stars = actors
+        # Getting cast data - deprecated
+        #get_cast_data(page, cur_movie)
 
         # Box office data
         box_office_section = page.find("h3", text="Box Office")
@@ -118,20 +122,6 @@ def search_and_parse(movies, movie_list):
             continue
 
 
-def create_backup_file():
-    rows = MetaCriticMovie.get_all_rows()
-    backup = open(BACKUP_FILE, "wb")
-    fp.dump(rows, backup)
-    backup.close()
-
-
-def extract_backup():
-    backup = open(BACKUP_FILE, "rb")
-    rows = fp.load(backup)
-    backup.close()
-    return rows
-
-
 def main(rows, file=None):
     try:
         lst = []
@@ -159,7 +149,7 @@ def main(rows, file=None):
         log.close()
 
 
-# create_backup_file()
+#TmpMovies.create_backup_file(BACKUP_FILE)
 o = None
 o = open("..Files/out.txt", "wb")
 main(o)

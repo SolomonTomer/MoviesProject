@@ -2,28 +2,39 @@ import re
 from urllib.request import Request, urlopen
 from urllib import parse
 from bs4 import BeautifulSoup
-from Crawler.Database.Movie import MetaCriticMovie
+from Crawler.Database.TmpMovies import TmpMovies
 from Crawler.Database.Person import Person
-import pickle as fp
+from Crawler.Database.Movie import Movie
 import logging
+import pickle as pk
 
+# URL Constants
 BASIC_URL = 'http://www.metacritic.com'
 MOVIES_LIST = 'http://www.metacritic.com/browse/movies/title/dvd'
-SEARCH_PERSON_URL = 'http://www.metacritic.com/search/all/%s/results'
+SEARCH_META_SCORE_URL = 'http://www.metacritic.com/search/all/%s/results'
 PERSON_FILTER_OPTION = "?filter-options=movies&sort_options=user_score&num_items=100"
 
+# Files constants
+PERSON_BACKUP = "../Files/persons_backup.txt"
+MOVIES_BACKUP = "../Files/movies_backup.txt"
+LOG_FILE = "../Files/logger.txt"
+PERSON_INSERT_FILE = "../Files/persons_insert.sql"
+PERSON_LINKS_FILE = "../Files/persons_links.txt"
+MOVIE_PERSONS_INSERT = "../Files/movie_persons_insert.sql"
 
+# Other constants
 MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
 STARTING_INDEX = 2
 MAX_YEAR = 2016
 MIN_YEAR = 2014
-PERSON_BACKUP = "../Files/persons_backup.txt"
-LOG_FILE = "../Files/logger.txt"
-PERSON_INSERT_FILE = "../Files/persons_insert.sql"
 
+# Starting code
 log = open(LOG_FILE, 'w')  # backwards compatibility
 
 
+#######################################################################################
+############################# Creating the TmpMovie table #############################
+#######################################################################################
 def extract_movies_from_page(page, lst):
     movies = page.find_all("tr", re.compile("summary_row|details_row"))
     i = 0
@@ -55,8 +66,7 @@ def extract_movies_from_page(page, lst):
             for j in range(len(genres)):
                 genres[j] = genres[j].replace(",", "")
             genres.sort()
-            lst.append(MetaCriticMovie(title, release_date, run_time, score, user_score, genres))
-           # lst.append((title, score, date[1] + "/" + str(date[0]) + "/" + str(date[2])))
+            lst.append(TmpMovies(title, release_date, run_time, score, user_score, genres))
         except:
             try:
                 log.write(movie)
@@ -92,33 +102,19 @@ def parse_metascore():
     return movies_list
 
 
-def get_metascore_movies():
+def get_tmp_movies():
     try:
         log.write("Starting process\n")
         lst = parse_metascore()
         log.write("Starting insertion\n")
-        MetaCriticMovie.create_insert(lst)
+        TmpMovies.create_insert(lst)
     finally:
         log.write("DONE")
 
 
-def create_persons_backup_file(actors=True, directors=True, writers=True, missing=False):
-    if missing:
-        rows = Person.get_missing_values_people()
-    else:
-        rows = Person.get_persons_in_db(actors, directors, writers)
-    backup = open(PERSON_BACKUP, "wb")
-    fp.dump(rows, backup)
-    backup.close()
-
-
-def extract_persons_backup():
-    backup = open(PERSON_BACKUP, "rb")
-    rows = fp.load(backup)
-    backup.close()
-    return rows
-
-
+#######################################################################################
+############################# Creating the person table ###############################
+#######################################################################################
 def handle_person_page(person_url, person_name):
     try:
         req = Request(person_url + PERSON_FILTER_OPTION, headers={'User-Agent': 'Mozilla/5.0'})
@@ -153,7 +149,7 @@ def query_persons(persons):
     res = []
     for person in persons:
         q = parse.quote(person.name)
-        query = SEARCH_PERSON_URL % q
+        query = SEARCH_META_SCORE_URL % q
         try:
             req = Request(query, headers={'User-Agent': 'Mozilla/5.0'})
             search_page = BeautifulSoup(urlopen(req).read(), "html.parser")
@@ -165,7 +161,7 @@ def query_persons(persons):
             if new_person.name not in res:
                 res.append(new_person)
         except:
-            logging.exception('Exception query_persons')
+            logging.exception('Exception query_persons\n')
             continue
     return res
 
@@ -180,13 +176,118 @@ def get_persons_union_insert(persons_list):
     f.close()
 
 
+#######################################################################################
+####################### Extracting persons data from meta score #######################
+## This is a patch since imdb persons and meta critic persons may have different names.
+## So, this part will handle the recreation of the persons data
+#######################################################################################
+persons_links = []
+
+
+def create_meta_person_insert(output_file, persons_link_file):
+    movies = []
+    try:
+        movies = Movie.extract_backup(MOVIES_BACKUP)
+    except:
+        Movie.create_backup_file(MOVIES_BACKUP)
+        try:
+            movies = Movie.extract_backup(MOVIES_BACKUP)
+        except:
+            raise
+    
+    # Scanning movie pages and extracting from each the persons data
+    for movie in movies[1:3]:
+        handle_movie_search(movie)
+
+    fp = None
+    try:
+        fp = open(output_file, "wb")
+        Movie.create_persons_insert(movies, fp)
+    except:
+        logging.exception("Error trying to write movies persons to file")
+    finally:
+        if fp is not None:
+            fp.close()
+    extract_persons_links_backup(persons_link_file)
+
+
+def handle_movie_search(movie):
+    try:
+        search_url = SEARCH_META_SCORE_URL % parse.quote(movie.title)
+        req = Request(search_url, headers={'User-Agent': 'Mozilla/5.0'})
+        search_page = BeautifulSoup(urlopen(req).read(), "html.parser")
+
+        # Parsing page - assuming all of the first results are what we are looking for
+        best_match_li = search_page.find("li", "result first_result")
+        # if best_match_li.find("div", "result_type").text.strip().lower() != "movie":
+        #     print("x")
+        movie_link = best_match_li.find("a", href=True)['href']
+        handle_movie_page(BASIC_URL + movie_link, movie)
+    except:
+        logging.exception(("Exception in parsing movie: " + movie.title + " url: " + search_url).encode("utf8"))
+
+
+def handle_movie_page(movie_url, cur_movie):
+    try:
+        req = Request(movie_url + "/details", headers={'User-Agent': 'Mozilla/5.0'})
+        movie_page = BeautifulSoup(urlopen(req).read(), "html.parser")
+
+        # Parsing page - assuming all of the first results are what we are looking for
+        movie_credits = movie_page.find("div", "credits_list")
+
+        # Getting persons lists
+        cur_movie.directors = extract_persons(movie_credits, "director")
+        cur_movie.writers = extract_persons(movie_credits, "writer")
+        cur_movie.stars = extract_persons(movie_credits, "principal")
+    except:
+        logging.exception(("Exception in parsing movie url: " + movie_url + "").encode("utf8"))
+
+
+def extract_persons(credits_div, regexp_search):
+    lst = []
+    cur_tbl = credits_div.find(summary=re.compile(regexp_search, re.IGNORECASE))
+    for cur_row in cur_tbl.tbody.find_all("tr"):
+        person_link = cur_row.find("a", href=True)
+        lst.append(person_link.text.strip())
+        persons_links.append((person_link.text.strip(), person_link['href'][:person_link['href'].index("?")]))
+    return lst
+
+
+def persons_links_backup(file_name):
+    # Trying to write persons_links to file
+    fp = None
+    try:
+        fp = open(file_name, "wb")
+        pk.dump(persons_links, fp)
+    except:
+        logging.exception("Error trying to write person_links")
+    finally:
+        if fp is not None:
+            fp.close()
+
+
+def extract_persons_links_backup(file_name):
+    try:
+        backup = open(file_name, "rb")
+        rows = pk.load(backup)
+        backup.close()
+        return rows
+    except:
+        raise
+
+
+# "Main"
+logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
+
+
 ######### Getting movies #########
-# get_metascore_movies()
+# get_tmp_movies()
 
 ######### Getting the persons ##########
-# create_persons_backup_file()
-#create_persons_backup_file(missing=True)
-rows = extract_persons_backup()
-# rows = Person.get_persons_in_db(True, True, True)
-logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
-get_persons_union_insert(rows)
+#Person.create_persons_backup_file(PERSON_BACKUP)
+#Person.create_persons_backup_file(PERSON_BACKUP, missing=True)
+#rows = Person.extract_persons_backup(PERSON_BACKUP)
+#get_persons_union_insert(rows)
+
+#create_meta_person_insert(MOVIE_PERSONS_INSERT, PERSON_LINKS_FILE)
+print(extract_persons_links_backup(PERSON_LINKS_FILE))

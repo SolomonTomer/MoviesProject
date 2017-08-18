@@ -1,61 +1,18 @@
 import sys
 from Crawler.Database.Database import Database
-
-
-class MetaCriticMovie:
-    raw_sql = 'select "{}", STR_TO_DATE("{}", "%d/%m/%Y"), "{}", "{}", "{}", "{}" from dual'
-    get_all_sql = 'select * from movie_tmp'
-    get_movie_by_title = "select * from movie_tmp where title= %s"
-
-    def __init__(self, title, release_date, run_time, meta_score, user_score, genres):
-        self.title = title
-        self.release_date = release_date
-        self.run_time = run_time
-        self.meta_score = meta_score
-        self.user_score = user_score
-        self.genres = genres
-
-    @staticmethod
-    def get_by_title(title):
-        try:
-            conn = Database().get_connection()
-            cursor = conn.cursor()
-            cursor.execute(MetaCriticMovie.get_movie_by_title, title)
-            results = cursor.fetchall()
-            return results
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    @staticmethod
-    def create_insert(lst):
-        union = ''
-        for i in range(len(lst)):
-            self = lst[i]
-            union += MetaCriticMovie.raw_sql.format(self.title, self.release_date, self.run_time,
-                                                    self.meta_score, self.user_score, ', '.join(self.genres))
-            if i + 1 != len(lst):
-                union += " union all \n"
-        print(union)
-
-    @staticmethod
-    def get_all_rows():
-        results = ''
-        try:
-            conn = Database().get_connection()
-            cursor = conn.cursor()
-            cursor.execute(MetaCriticMovie.get_all_sql)
-            results = cursor.fetchall()
-            return results
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
+import pickle as fp
 
 
 class Movie:
 
-    def __init__(self):
-        self.title = None
+    # Constants
+    movies_union_sql = 'select "{}", STR_TO_DATE("{}", "%Y-%m-%d"), "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}" ' \
+                       'from dual'
+    table_connector_union_sql = 'select "{}", "{}" from dual '
+    get_all_sql = 'select * from movies'
+
+    def __init__(self, title=None):
+        self.title = title
         self.release_date = None
         self.rated = None
         self.run_time = 0
@@ -64,24 +21,6 @@ class Movie:
         self.gross = 0
         self.imdb_score = 0
         self.meta_score = 0
-        self.user_score = 0
-        self.genres = []
-        self.countries = []
-        self.languages = []
-        self.directors = []
-        self.writers = []
-        self.stars = []
-
-    def copy_from_row(self, row):
-        self.title = row[0]
-        self.release_date = row[2]
-        self.rated = None
-        self.run_time = 0
-        self.budget = 0
-        self.opening_weekend = 0
-        self.gross = 0
-        self.imdb_score = 0
-        self.meta_score = row[1]
         self.user_score = 0
         self.genres = []
         self.countries = []
@@ -108,11 +47,59 @@ class Movie:
         self.writers = []
         self.stars = []
 
-    movies_union_sql = 'select "{}", STR_TO_DATE("{}", "%Y-%m-%d"), "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}" ' \
-                       'from dual'
-    table_connector_union_sql = 'select "{}", "{}" from dual '
+    @staticmethod
+    def copy_from_row(row):
+        self = Movie()
+        self.title = row.get("title")
+        self.release_date = row.get("release_date")
+        self.rated = row.get("rated")
+        self.run_time = row.get("run_time")
+        self.budget = row.get("budget")
+        self.opening_weekend = row.get("opening_weekend")
+        self.gross = row.get("gross")
+        self.imdb_score = row.get("imdb_score")
+        self.meta_score = row.get("meta_score")
+        self.user_score = row.get("user_score")
+        self.genres = []
+        self.countries = []
+        self.languages = []
+        self.directors = []
+        self.writers = []
+        self.stars = []
+        return self
 
-    mx = 'select %s from dual'
+    @staticmethod
+    def get_all_rows():
+        results = ''
+        try:
+            conn = Database().get_connection()
+            cursor = conn.cursor()
+            cursor.execute(Movie.get_all_sql)
+            results = cursor.fetchall()
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+            return [Movie.copy_from_row(row) for row in results]
+
+    @staticmethod
+    def create_backup_file(file_name):
+        rows = Movie.get_all_rows()
+        backup = open(file_name, "wb")
+        fp.dump(rows, backup)
+        backup.close()
+
+    @staticmethod
+    def extract_backup(file_name):
+        try:
+            backup = open(file_name, "rb")
+            rows = fp.load(backup)
+            backup.close()
+            return rows
+        except:
+            raise
 
     @staticmethod
     def generate_union(lst, title, add_union):
@@ -125,6 +112,41 @@ class Movie:
             if ind + 1 != len(lst):
                 res += " union all \n"
         return res
+
+    @staticmethod
+    def create_persons_insert(lst, output=None):
+        directors_insert = 'insert into movie_directors \n'
+        writers_insert = 'insert into movie_writers \n'
+        stars_insert = 'insert into movie_stars \n'
+        not_first_dir = False
+        not_first_writer = False
+        not_first_star = False
+        for i in range(len(lst)):
+            self = lst[i]
+            if len(self.directors) != 0:
+                directors_insert += Movie.generate_union(self.directors, self.title, not_first_dir)
+                not_first_dir = True
+            if len(self.writers) != 0:
+                writers_insert += Movie.generate_union(self.writers, self.title, not_first_writer)
+                not_first_writer = True
+            if len(self.stars) != 0:
+                stars_insert += Movie.generate_union(self.stars, self.title, not_first_star)
+                not_first_star = True
+
+        if output is not None:
+            output.write("#DIRECTORS\n".encode("utf8"))
+            output.write((directors_insert + ";").encode("utf8"))
+            output.write("\n#WRITERS\n".encode("utf8"))
+            output.write((writers_insert + ";").encode("utf8"))
+            output.write("\n#STARS\n".encode("utf8"))
+            output.write((stars_insert + ";").encode("utf8"))
+        else:
+            print("#DIRECTORS\n")
+            print(directors_insert + ";")
+            print("#WRITERS\n")
+            print(writers_insert + ";")
+            print("#STARS\n")
+            print(stars_insert + ";")
 
     @staticmethod
     def create_insert(lst, output=None):
