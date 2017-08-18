@@ -9,7 +9,7 @@ from Crawler.Database.Movie import Movie
 
 SEARCH_URL = "http://www.imdb.com/find?ref_=nv_sr_fn&%s&s=all"
 BASE_URL = "http://www.imdb.com"
-BACKUP_FILE = "../Files/backup.txt"
+BACKUP_FILE = "..Files/Backups/movie_backup.txt"
 log = open(BACKUP_FILE, 'w')
 
 
@@ -151,5 +151,5 @@ def main(rows, file=None):
 
 #TmpMovies.create_backup_file(BACKUP_FILE)
 o = None
-o = open("..Files/out.txt", "wb")
+o = open("..Files/Outputs/out.txt", "wb")
 main(o)

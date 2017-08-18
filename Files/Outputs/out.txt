@@ -1,0 +1,42 @@
+#MOVIES
+insert into movies 
+select "#Horror", STR_TO_DATE("2015-11-20", "%Y-%m-%d"), NULL, "101", "1500000", "0", "0", "3.2", "42", "3.2" from dual union all 
+select "'71", STR_TO_DATE("2015-02-27", "%Y-%m-%d"), "R", "99", "0", "55761", "1268760", "7.2", "83", "7.5" from dual;
+#GENRES
+insert into movie_genres 
+select "#Horror", "Drama" from dual  union all 
+select "#Horror", "Horror" from dual  union all 
+select "#Horror", "Mystery" from dual  union all 
+select "#Horror", "Thriller" from dual  union all 
+select "'71", "Action" from dual  union all 
+select "'71", "Drama" from dual  union all 
+select "'71", "Thriller" from dual  union all 
+select "'71", "War" from dual ;
+#COUNTRIES
+insert into movie_countries 
+select "#Horror", "USA" from dual  union all 
+select "'71", "UK" from dual ;
+#LANGUAGES
+insert into movie_languages 
+select "#Horror", "English" from dual  union all 
+select "'71", "English" from dual ;
+#DIRECTORS
+insert into movie_directors 
+select "#Horror", "Tara Subkoff" from dual  union all 
+select "'71", "Yann Demange" from dual ;
+#WRITERS
+insert into movie_writers 
+select "#Horror", "Tara Subkoff" from dual  union all 
+select "'71", "Gregory Burke" from dual ;
+#STARS
+insert into movie_stars 
+select "#Horror", "Emma Adler" from dual  union all 
+select "#Horror", "Jessica Blank" from dual  union all 
+select "#Horror", "Ted Christensen" from dual  union all 
+select "#Horror", "Annabelle Dexter-Jones" from dual  union all 
+select "#Horror", "Balthazar Getty" from dual  union all 
+select "'71", "Jack O'Connell" from dual  union all 
+select "'71", "Jack Lowden" from dual  union all 
+select "'71", "Paul Popplewell" from dual  union all 
+select "'71", "Adam Nagaitis" from dual  union all 
+select "'71", "Joshua Hill" from dual ;

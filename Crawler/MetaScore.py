@@ -15,12 +15,12 @@ SEARCH_META_SCORE_URL = 'http://www.metacritic.com/search/all/%s/results'
 PERSON_FILTER_OPTION = "?filter-options=movies&sort_options=user_score&num_items=100"
 
 # Files constants
-PERSON_BACKUP = "../Files/persons_backup.txt"
-MOVIES_BACKUP = "../Files/movies_backup.txt"
-LOG_FILE = "../Files/logger.txt"
-PERSON_INSERT_FILE = "../Files/persons_insert.sql"
-PERSON_LINKS_FILE = "../Files/persons_links.txt"
-MOVIE_PERSONS_INSERT = "../Files/movie_persons_insert.sql"
+PERSON_BACKUP = "../Files/Backups/persons_backup.txt"
+MOVIES_BACKUP = "../Files/Backups/movies_backup.txt"
+PERSON_LINKS_BACKUP = "../Files/Backups/persons_links.txt"
+LOG_FILE = "../Files/Logs/logger.txt"
+PERSON_INSERT_FILE = "../Files/Outputs/persons_insert.sql"
+MOVIE_PERSONS_INSERT = "../Files/Outputs/movie_persons_insert.sql"
 
 # Other constants
 MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
@@ -289,5 +289,5 @@ logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
 #rows = Person.extract_persons_backup(PERSON_BACKUP)
 #get_persons_union_insert(rows)
 
-#create_meta_person_insert(MOVIE_PERSONS_INSERT, PERSON_LINKS_FILE)
-print(extract_persons_links_backup(PERSON_LINKS_FILE))
+#create_meta_person_insert(MOVIE_PERSONS_INSERT, PERSON_LINKS_BACKUP)
+print(extract_persons_links_backup(PERSON_LINKS_BACKUP))
