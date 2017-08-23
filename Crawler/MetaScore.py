@@ -7,6 +7,8 @@ from Crawler.Database.Person import Person
 from Crawler.Database.Movie import Movie
 import logging
 import pickle as pk
+from fuzzywuzzy import process
+from fake_useragent import UserAgent
 
 # URL Constants
 BASIC_URL = 'http://www.metacritic.com'
@@ -182,6 +184,7 @@ def get_persons_union_insert(persons_list):
 ## So, this part will handle the recreation of the persons data
 #######################################################################################
 persons_links = []
+ua = UserAgent()
 
 
 def create_meta_person_insert(output_file, persons_link_file):
@@ -189,32 +192,39 @@ def create_meta_person_insert(output_file, persons_link_file):
     try:
         movies = Movie.extract_backup(MOVIES_BACKUP)
     except:
-        Movie.create_backup_file(MOVIES_BACKUP)
         try:
+            Movie.create_backup_file(MOVIES_BACKUP)
             movies = Movie.extract_backup(MOVIES_BACKUP)
         except:
             raise
-    
-    # Scanning movie pages and extracting from each the persons data
-    for movie in movies[1:3]:
-        handle_movie_search(movie)
 
-    fp = None
+    backup_index = 0
     try:
-        fp = open(output_file, "wb")
-        Movie.create_persons_insert(movies, fp)
+        # Scanning movie pages and extracting from each the persons data
+        for movie in movies[:6]:
+            handle_movie_search(movie)
+            backup_index += 1
+
+        fp = None
+        try:
+            fp = open(output_file, "wb")
+            Movie.create_persons_insert(movies, fp)
+        except:
+            logging.exception("Error trying to write movies persons to file")
+            raise
+        finally:
+            if fp is not None:
+                fp.close()
     except:
-        logging.exception("Error trying to write movies persons to file")
+        logging.exception("Stopped at index: " + str(backup_index))
     finally:
-        if fp is not None:
-            fp.close()
-    extract_persons_links_backup(persons_link_file)
+        save_persons_links_backup(persons_link_file)
 
 
 def handle_movie_search(movie):
     try:
         search_url = SEARCH_META_SCORE_URL % parse.quote(movie.title)
-        req = Request(search_url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = Request(search_url, headers={'User-Agent': ua.random})
         search_page = BeautifulSoup(urlopen(req).read(), "html.parser")
 
         # Parsing page - assuming all of the first results are what we are looking for
@@ -225,22 +235,38 @@ def handle_movie_search(movie):
         handle_movie_page(BASIC_URL + movie_link, movie)
     except:
         logging.exception(("Exception in parsing movie: " + movie.title + " url: " + search_url).encode("utf8"))
+        print("Error occurred\n")
 
 
 def handle_movie_page(movie_url, cur_movie):
     try:
-        req = Request(movie_url + "/details", headers={'User-Agent': 'Mozilla/5.0'})
+        req = Request(movie_url + "/details", headers={'User-Agent': ua.random})
         movie_page = BeautifulSoup(urlopen(req).read(), "html.parser")
 
         # Parsing page - assuming all of the first results are what we are looking for
         movie_credits = movie_page.find("div", "credits_list")
 
         # Getting persons lists
-        cur_movie.directors = extract_persons(movie_credits, "director")
-        cur_movie.writers = extract_persons(movie_credits, "writer")
-        cur_movie.stars = extract_persons(movie_credits, "principal")
+        directors = extract_persons(movie_credits, "director")
+        writers = extract_persons(movie_credits, "writer")
+        stars = extract_persons(movie_credits, "cast")
+
+        # Searching for all the inequalities
+        check_inequalities_in_data(cur_movie.directors, directors)
+        check_inequalities_in_data(cur_movie.writers, writers)
+        check_inequalities_in_data(cur_movie.stars, stars)
     except:
         logging.exception(("Exception in parsing movie url: " + movie_url + "").encode("utf8"))
+        raise
+
+
+def check_inequalities_in_data(source, data_list):
+    dim_data = [d[0] for d in data_list]
+    for item in source:
+        res = process.extractOne(item, dim_data)
+        if res[1] != 100 and res[0] not in persons_links:
+            href = data_list[data_list.index(res[0])][1]
+            persons_links.append((res[0], href))
 
 
 def extract_persons(credits_div, regexp_search):
@@ -248,12 +274,14 @@ def extract_persons(credits_div, regexp_search):
     cur_tbl = credits_div.find(summary=re.compile(regexp_search, re.IGNORECASE))
     for cur_row in cur_tbl.tbody.find_all("tr"):
         person_link = cur_row.find("a", href=True)
-        lst.append(person_link.text.strip())
-        persons_links.append((person_link.text.strip(), person_link['href'][:person_link['href'].index("?")]))
+        lst.append((person_link.text.strip(), person_link['href'][:person_link['href'].index("?")]))
+        # tmp = (person_link.text.strip(), person_link['href'][:person_link['href'].index("?")])
+        # if tmp not in persons_links:
+        #     persons_links.append(tmp)
     return lst
 
 
-def persons_links_backup(file_name):
+def save_persons_links_backup(file_name):
     # Trying to write persons_links to file
     fp = None
     try:
@@ -261,12 +289,13 @@ def persons_links_backup(file_name):
         pk.dump(persons_links, fp)
     except:
         logging.exception("Error trying to write person_links")
+        raise
     finally:
         if fp is not None:
             fp.close()
 
 
-def extract_persons_links_backup(file_name):
+def load_persons_links_backup(file_name):
     try:
         backup = open(file_name, "rb")
         rows = pk.load(backup)
@@ -279,15 +308,20 @@ def extract_persons_links_backup(file_name):
 # "Main"
 logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
 
-
-######### Getting movies #########
+# Phase 1 - getting movies creating tmp_movies
 # get_tmp_movies()
 
-######### Getting the persons ##########
+# Phase 2 - Run imdb script
+# Phase 3 - Getting persons data ( FAILED ) TODO:: Delete
 #Person.create_persons_backup_file(PERSON_BACKUP)
 #Person.create_persons_backup_file(PERSON_BACKUP, missing=True)
 #rows = Person.extract_persons_backup(PERSON_BACKUP)
 #get_persons_union_insert(rows)
 
+# Phase 3 - Getting persons data
 #create_meta_person_insert(MOVIE_PERSONS_INSERT, PERSON_LINKS_BACKUP)
-print(extract_persons_links_backup(PERSON_LINKS_BACKUP))
+#data = load_persons_links_backup(PERSON_LINKS_BACKUP)
+#print(data.count(data[0]))
+req = Request(BASIC_URL, headers={'User-Agent': ua.random})
+search_page = BeautifulSoup(urlopen(req).read(), "html.parser")
+print(search_page)

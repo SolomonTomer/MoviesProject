@@ -9,7 +9,22 @@ class Movie:
     movies_union_sql = 'select "{}", STR_TO_DATE("{}", "%Y-%m-%d"), "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}" ' \
                        'from dual'
     table_connector_union_sql = 'select "{}", "{}" from dual '
-    get_all_sql = 'select * from movies'
+    get_all_sql = "select m1.*, dir.director, act.actor, wrt.writer " \
+                  "from movies m1, " \
+                  "(select m.title, group_concat(d.director SEPARATOR ', ') as director " \
+                  " from movies m, movie_directors d where m.title = d.title " \
+                  " group by m.title) dir," \
+                  "(select m.title, group_concat(d.actor SEPARATOR ', ') as actor " \
+                  " from movies m, movie_stars d where m.title = d.title" \
+                  " group by m.title) act," \
+                  "(select m.title, group_concat(d.writer SEPARATOR ', ') as writer " \
+                  " from movies m, movie_writers d where m.title = d.title" \
+                  " group by m.title) wrt" \
+                  " where m1.title = dir.title and m1.title = act.title and m1.title = wrt.title"
+
+    movie_directors_sql = 'select director from movie_directors where title = %s'
+    movie_writers_sql = 'select writer from movie_writers where title = %s'
+    movie_actors_sql = 'select actor from movie_stars where title = %s'
 
     def __init__(self, title=None):
         self.title = title
@@ -47,6 +62,17 @@ class Movie:
         self.writers = []
         self.stars = []
 
+    def get_persons_data(self, conn):
+        if conn is None:
+            return
+        cursor = conn.cursor()
+        cursor.execute(Movie.movie_directors_sql, self.title)
+        self.directors = [item["director"] for item in cursor.fetchall()]
+        cursor.execute(Movie.movie_writers_sql, self.title)
+        self.writers = [item["writer"] for item in cursor.fetchall()]
+        cursor.execute(Movie.movie_actors_sql, self.title)
+        self.stars = [item["actor"] for item in cursor.fetchall()]
+
     @staticmethod
     def copy_from_row(row):
         self = Movie()
@@ -63,26 +89,24 @@ class Movie:
         self.genres = []
         self.countries = []
         self.languages = []
-        self.directors = []
-        self.writers = []
-        self.stars = []
+        self.directors = row.get("director").split(', ')
+        self.writers = row.get("writer").split(', ')
+        self.stars = row.get("actor").split(', ')
         return self
 
     @staticmethod
     def get_all_rows():
-        results = ''
         try:
             conn = Database().get_connection()
             cursor = conn.cursor()
             cursor.execute(Movie.get_all_sql)
             results = cursor.fetchall()
+            return [Movie.copy_from_row(row) for row in results]
         except:
-            print("Unexpected error:", sys.exc_info()[0])
             raise
         finally:
             if conn is not None:
                 conn.close()
-            return [Movie.copy_from_row(row) for row in results]
 
     @staticmethod
     def create_backup_file(file_name):
