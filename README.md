@@ -10,4 +10,6 @@ Installation:
    pip install python-levenshtein
    
 Phase 1:
-From MetaScore.py - edit the script or run the function get_tmp_movies().
+Open the script MetaScore.py.
+Set the years parameters in the head of the file:  MAX_YEAR = xxxx, MIN_YEAR = yyyyy.
+Run: edit the script or run the function get_tmp_movies().
