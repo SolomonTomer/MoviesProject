@@ -1,12 +1,12 @@
 # MoviesProject
 Installation:
 1. Download the project
-2. Install the following packages: \n
-   pip install beautifulsoup4 \n
-   pip install pymysql \n
-   pip install fuzzywuzzy \n
-   pip install python-levenshtein \n
-   Download/Install: pickle (via git)\n
+2. Install the following packages:  
+   pip install beautifulsoup4  
+   pip install pymysql  
+   pip install fuzzywuzzy  
+   pip install python-levenshtein  
+   Download/Install: pickle (via git)  
    
 Phase 1:
 Open the script MetaScore.py.
